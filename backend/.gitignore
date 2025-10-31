@@ -1,0 +1,5 @@
+# Ignore env and local artifacts
+.env
+*.db
+*.log
+__pycache__/
