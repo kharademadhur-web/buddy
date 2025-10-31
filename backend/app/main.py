@@ -11,12 +11,20 @@ from fastapi.middleware.cors import CORSMiddleware
 # Create app
 app = FastAPI(title="Buddy AI Assistant API", version="1.0.0")
 
-# CORS from env or default
-_origins = os.environ.get("ALLOWED_ORIGINS", "http://localhost:5173,http://localhost:4173")
+# CORS from env or default (include common hosting domains)
+_default_origins = ",".join([
+    "http://localhost:5173",
+    "http://localhost:4173",
+    "https://buddy-frontend.kharademadhur.workers.dev",
+])
+_origins = os.environ.get("ALLOWED_ORIGINS", _default_origins)
 origins = [o.strip() for o in _origins.split(",") if o.strip()]
+# Also allow regex to match dynamic preview domains while keeping credentials working
+origin_regex = os.environ.get("CORS_ALLOW_ORIGIN_REGEX", r"https?://.*")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins or ["*"],
+    allow_origins=origins,
+    allow_origin_regex=origin_regex,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
