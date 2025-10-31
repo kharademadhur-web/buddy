@@ -3,13 +3,14 @@ services:
     name: buddy-backend
     runtime: python
     pythonVersion: 3.12
+    plan: free
     buildCommand: pip install -r requirements.txt
     startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
-    plan: free
+    healthCheckPath: /api/health
     envVars:
       - key: OPENROUTER_API_KEY
-        scope: build
+        sync: false
       - key: SECRET_KEY
-        scope: build
+        sync: false
       - key: DATABASE_URL
         value: sqlite:///./buddy.db
