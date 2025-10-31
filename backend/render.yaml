@@ -9,6 +9,8 @@ services:
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.6
+      - key: PYTHONPATH
+        value: backend
       - key: OPENROUTER_API_KEY
         sync: false
       - key: SECRET_KEY
