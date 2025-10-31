@@ -57,3 +57,33 @@ try:
             print(f"[startup] Skipped router {getattr(mod, '__name__', mod)}: {e}")
 except Exception as e:  # pragma: no cover
     print(f"[startup] Routers not loaded: {e}")
+
+# Fallback minimal endpoints if routers are unavailable (avoid 404s)
+from fastapi import Body
+from typing import Any, Dict
+
+def _route_exists(path: str, method: str = "GET") -> bool:
+    try:
+        for r in app.router.routes:
+            if getattr(r, "path", None) == path and method in getattr(r, "methods", set([method])):
+                return True
+    except Exception:
+        pass
+    return False
+
+if not _route_exists("/api/conversations", "GET"):
+    @app.get("/api/conversations")
+    def _fallback_conversations() -> list[dict]:
+        return []
+
+if not _route_exists("/api/chat/", "POST"):
+    @app.post("/api/chat/")
+    async def _fallback_chat(payload: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
+        text = payload.get("message") or payload.get("text") or ""
+        return {
+            "response": ("Buddy backend is initializing. "
+                          "Please try again in a moment." if not text else f"You said: {text}"),
+            "emotion": None,
+            "conversation_id": payload.get("conversation_id") or "new",
+            "model": "placeholder"
+        }
