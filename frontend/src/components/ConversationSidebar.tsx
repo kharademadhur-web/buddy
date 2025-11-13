@@ -24,7 +24,14 @@ export default function ConversationSidebar({ conversations, activeId, onSelect,
               <div style={{ fontSize: 14, fontWeight: 600, color: '#111827' }}>{c.title}</div>
               <div style={{ fontSize: 12, color: '#6b7280' }}>{new Date(c.created_at).toLocaleString()}</div>
             </div>
-            <button onClick={(e) => { e.stopPropagation(); onDelete(c.id); }} style={{ background: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer' }}>🗑️</button>
+            <button
+              onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}
+              style={{ background: 'transparent', color: '#ef4444', border: 'none', cursor: 'pointer' }}
+              aria-label={`Delete conversation ${c.title || 'Untitled'}`}
+              title={`Delete conversation ${c.title || 'Untitled'}`}
+            >
+              🗑️
+            </button>
           </div>
         ))}
         {conversations.length === 0 && (

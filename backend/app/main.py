@@ -14,6 +14,7 @@ app = FastAPI(title="Buddy AI Assistant API", version="1.0.0")
 # CORS from env or default (include common hosting domains)
 _default_origins = ",".join([
     "http://localhost:5173",
+    "http://127.0.0.1:5173",
     "http://localhost:4173",
     "https://buddy-frontend.kharademadhur.workers.dev",
 ])
@@ -29,6 +30,20 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Auth middleware & DB init
+try:
+    from app.middleware.auth import AuthMiddleware
+    app.add_middleware(AuthMiddleware)
+except Exception as e:
+    print(f"[startup] Auth middleware not loaded: {e}")
+
+try:
+    from app.database import Base, engine  # type: ignore
+    from app.models import user as _user, note as _note, conversation as _conv, message as _msg  # ensure models imported
+    Base.metadata.create_all(bind=engine)
+except Exception as e:
+    print(f"[startup] DB init failed: {e}")
 
 @app.get("/")
 async def root():
@@ -57,6 +72,41 @@ try:
             print(f"[startup] Skipped router {getattr(mod, '__name__', mod)}: {e}")
 except Exception as e:  # pragma: no cover
     print(f"[startup] Routers not loaded: {e}")
+
+# Initialize LLM services on startup
+@app.on_event("startup")
+async def startup_event():
+    import logging
+    log = logging.getLogger(__name__)
+    try:
+        from app.services.openrouter_service import OpenRouterService
+        app.state.openrouter = OpenRouterService()
+        if app.state.openrouter.client:
+            log.info("✓ OpenRouter service initialized")
+        else:
+            app.state.openrouter = None
+    except Exception as e:
+        log.warning(f"OpenRouter init skipped: {e}")
+        app.state.openrouter = None
+    
+    try:
+        from app.services.groq_service import GroqService
+        app.state.groq = GroqService()
+        if app.state.groq.client:
+            log.info("✓ Groq service initialized")
+        else:
+            app.state.groq = None
+    except Exception as e:
+        log.warning(f"Groq init skipped: {e}")
+        app.state.groq = None
+    
+    try:
+        from app.services.phi2_service import Phi2Service
+        app.state.phi2 = Phi2Service()
+        log.info("✓ Phi2 service initialized")
+    except Exception as e:
+        log.warning(f"Phi2 init skipped: {e}")
+        app.state.phi2 = None
 
 # Fallback minimal endpoints if routers are unavailable (avoid 404s)
 from fastapi import Body

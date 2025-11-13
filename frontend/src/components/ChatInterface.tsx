@@ -76,7 +76,13 @@ export default function ChatInterface() {
       )}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', marginLeft: showSidebar ? 0 : 0 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
-          <button onClick={() => setShowSidebar(s => !s)} style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}>☰</button>
+          <button
+            onClick={() => setShowSidebar(s => !s)}
+            style={{ padding: '6px 10px', borderRadius: 6, border: '1px solid #e5e7eb', background: '#fff', cursor: 'pointer' }}
+            aria-label={showSidebar ? "Hide conversation list" : "Show conversation list"}
+          >
+            ☰
+          </button>
           {activeId && <div style={{ color: '#6b7280' }}>Conversation #{activeId}</div>}
           <div />
         </div>

@@ -1,10 +1,10 @@
 import { ReactNode, useState } from 'react';
-import { MessageSquare, FileText, Menu, X, Heart } from 'lucide-react';
+import { MessageSquare, FileText, Menu, X, Heart, History } from 'lucide-react';
 
 interface Props {
   children: ReactNode;
-  currentPage: 'chat' | 'notes' | 'emotion';
-  onNavigate: (page: 'chat' | 'notes' | 'emotion') => void;
+  currentPage: 'chat' | 'notes' | 'emotion' | 'history';
+  onNavigate: (page: 'chat' | 'notes' | 'emotion' | 'history') => void;
 }
 
 export default function LayoutBolt({ children, currentPage, onNavigate }: Props) {
@@ -12,10 +12,11 @@ export default function LayoutBolt({ children, currentPage, onNavigate }: Props)
   const navItems = [
     { id: 'chat' as const, label: 'Chat', icon: MessageSquare },
     { id: 'notes' as const, label: 'Notes', icon: FileText },
-    { id: 'emotion' as const, label: 'Emotion', icon: Heart },
+    { id: 'emotion' as const, label: 'Emotions', icon: Heart },
+    { id: 'history' as const, label: 'History', icon: History },
   ];
 
-  const handleNavigate = (page: 'chat' | 'notes' | 'emotion') => {
+  const handleNavigate = (page: 'chat' | 'notes' | 'emotion' | 'history') => {
     onNavigate(page);
     setSidebarOpen(false);
   };
@@ -25,6 +26,7 @@ export default function LayoutBolt({ children, currentPage, onNavigate }: Props)
       <button
         onClick={() => setSidebarOpen(!sidebarOpen)}
         className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all"
+        aria-label={sidebarOpen ? "Close navigation menu" : "Open navigation menu"}
       >
         {sidebarOpen ? <X className="w-6 h-6 text-gray-700" /> : <Menu className="w-6 h-6 text-gray-700" />}
       </button>
@@ -56,7 +58,7 @@ export default function LayoutBolt({ children, currentPage, onNavigate }: Props)
         <nav className="p-4 space-y-2">
           {navItems.map((item) => {
             const Icon = item.icon;
-            const isActive = currentPage === item.id;
+            const isActive = currentPage === item.id || (item.id === 'emotion' && currentPage === 'emotion');
             return (
               <button
                 key={item.id}
@@ -66,6 +68,7 @@ export default function LayoutBolt({ children, currentPage, onNavigate }: Props)
                     ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-md'
                     : 'text-gray-700 hover:bg-gray-100'
                 }`}
+                aria-label={item.label}
               >
                 <Icon className="w-5 h-5" />
                 <span className="font-medium">{item.label}</span>

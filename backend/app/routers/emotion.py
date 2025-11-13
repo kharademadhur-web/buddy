@@ -8,6 +8,10 @@ router = APIRouter(prefix="/api/emotion", tags=["emotion"])
 
 organizer = EmotionOrganizer(base_path="./user_data")
 
+from fastapi import Depends, Request
+from app.utils.auth import get_current_user
+from app.models.user import User
+
 
 class OrganizePayload(BaseModel):
     user_id: str
@@ -18,7 +22,7 @@ class OrganizePayload(BaseModel):
 
 
 @router.post("/organize")
-async def organize(payload: OrganizePayload):
+async def organize(payload: OrganizePayload, user: User = Depends(get_current_user)):
     analysis = None
     if payload.emotion:
         analysis = {
@@ -29,15 +33,15 @@ async def organize(payload: OrganizePayload):
 
 
 @router.get("/summary")
-async def summary(user_id: str = Query(...), days: int = Query(7, ge=1, le=365)):
+async def summary(user_id: str = Query(...), days: int = Query(7, ge=1, le=365), _: User = Depends(get_current_user)):
     return await organizer.get_emotion_summary(user_id=user_id, days=days)
 
 
 @router.get("/categories")
-async def categories(user_id: str = Query(...)):
+async def categories(user_id: str = Query(...), _: User = Depends(get_current_user)):
     return await organizer.get_category_list(user_id)
 
 
 @router.get("/search")
-async def search(user_id: str = Query(...), keyword: str = Query(...), category: Optional[str] = Query(None)):
+async def search(user_id: str = Query(...), keyword: str = Query(...), category: Optional[str] = Query(None), _: User = Depends(get_current_user)):
     return await organizer.search_notes(user_id=user_id, keyword=keyword, category=category)

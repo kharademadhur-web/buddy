@@ -1,0 +1,1 @@
+This is a placeholder for favicon.ico to be added via CI/CD or manual process.

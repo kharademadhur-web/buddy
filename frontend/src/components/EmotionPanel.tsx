@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { emotionOrganize, emotionSummary, emotionCategories, emotionSearch } from '../api';
+import EmotionChart from './EmotionChart';
 
 export default function EmotionPanel() {
   const [userId] = useState('debug');
@@ -69,10 +70,8 @@ export default function EmotionPanel() {
         <div className="p-4 bg-white border rounded-lg">
           <h3 className="text-lg font-semibold">Summary (7 days)</h3>
           <div className="text-sm text-gray-600 mt-2">Total: {summary?.total_entries ?? 0}</div>
-          <div className="mt-2 space-y-1">
-            {summary?.emotions && Object.entries(summary.emotions).map(([k,v]: any) => (
-              <div key={k} className="flex justify-between text-sm"><span>{k}</span><span>{v}</span></div>
-            ))}
+          <div className="mt-3">
+            <EmotionChart counts={summary?.emotions ?? null} percentages={summary?.emotion_percentages ?? null} />
           </div>
         </div>
         <div className="p-4 bg-white border rounded-lg">
