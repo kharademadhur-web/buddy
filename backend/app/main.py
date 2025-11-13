@@ -59,19 +59,26 @@ async def root():
 async def health():
     return {"status": "healthy"}
 
-# Try to include real routers if available; ignore errors so boot succeeds
-try:
-    from app.routers import auth, chat, notes
-    from app.routers import conversations as conversations_router
-    from app.routers import emotion as emotion_router
+# Try to include real routers if available; import each independently so one failure doesn't block others
+from importlib import import_module
 
-    for mod in (auth, chat, notes, conversations_router, emotion_router):
-        try:
-            app.include_router(mod.router)
-        except Exception as e:  # pragma: no cover
-            print(f"[startup] Skipped router {getattr(mod, '__name__', mod)}: {e}")
-except Exception as e:  # pragma: no cover
-    print(f"[startup] Routers not loaded: {e}")
+def _include_router(module_path: str, attr: str = "router"):
+    try:
+        mod = import_module(module_path)
+        router_obj = getattr(mod, attr, None)
+        if router_obj is not None:
+            app.include_router(router_obj)
+            print(f"[startup] Router loaded: {module_path}")
+        else:
+            print(f"[startup] No 'router' in {module_path}")
+    except Exception as e:  # pragma: no cover
+        print(f"[startup] Skipped router {module_path}: {e}")
+
+_include_router("app.routers.auth")
+_include_router("app.routers.chat")
+_include_router("app.routers.notes")
+_include_router("app.routers.conversations")
+_include_router("app.routers.emotion")
 
 # Initialize LLM services on startup
 @app.on_event("startup")
