@@ -6,8 +6,9 @@ from typing import Optional, Dict, Any
 from fastapi import Depends, HTTPException, Request
 from jose import jwt, JWTError
 from sqlalchemy.orm import Session
-from google.oauth2 import id_token
-from google.auth.transport import requests as google_requests
+# Lazy import inside verify_google_id_token to avoid import-time failures in slim environments
+# from google.oauth2 import id_token
+# from google.auth.transport import requests as google_requests
 
 from app.config import settings
 from app.database import SessionLocal
@@ -93,7 +94,12 @@ def verify_google_id_token(credential: str) -> Dict[str, Any]:
     if not settings.google_client_id:
         raise HTTPException(status_code=500, detail="GOOGLE_CLIENT_ID not configured")
     try:
-        idinfo = id_token.verify_oauth2_token(credential, google_requests.Request(), settings.google_client_id)
+        from google.oauth2 import id_token as _id_token  # type: ignore
+        from google.auth.transport import requests as google_requests  # type: ignore
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"google-auth not available: {e}")
+    try:
+        idinfo = _id_token.verify_oauth2_token(credential, google_requests.Request(), settings.google_client_id)
         # idinfo includes: sub (google user id), email, name, picture, email_verified
         return idinfo
     except Exception as e:
