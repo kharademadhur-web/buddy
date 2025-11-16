@@ -13,6 +13,17 @@ export type ConversationBrief = { id: number; title: string; created_at: string;
 export type MessageOut = { id: number; role: 'system' | 'user' | 'assistant'; content: string; created_at: string };
 export type ConversationDetail = { id: number; title: string; messages: MessageOut[] };
 
+// Auth endpoints
+export async function loginDemo(username = 'demo', password = 'demo123') {
+  const res = await fetch(`${API_BASE}/api/auth/token`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ username, password })
+  });
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
+  return res.json() as Promise<{ access_token: string; token_type: string }>; 
+}
+
 export async function organizeNotes(text: string, detectEmotion: boolean = true) {
   const res = await fetch(`${API_BASE}/api/notes/organize`, {
     method: 'POST',

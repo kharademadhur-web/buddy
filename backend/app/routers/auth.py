@@ -49,13 +49,21 @@ class GoogleLoginResponse(BaseModel):
 
 @router.post("/google", response_model=GoogleLoginResponse)
 def google_login(payload: GoogleLoginRequest, db: Session = Depends(get_db)):
-    info = verify_google_id_token(payload.credential)
+    import logging
+    log = logging.getLogger(__name__)
+    try:
+        info = verify_google_id_token(payload.credential)
+    except Exception as e:
+        log.error(f"Google token verification failed: {e}")
+        raise HTTPException(status_code=401, detail=f"Invalid Google token: {str(e)}")
+    
     google_id = info.get("sub")
     email = info.get("email")
     name = info.get("name")
     picture = info.get("picture")
     if not google_id:
-        raise HTTPException(status_code=401, detail="Invalid Google token")
+        log.error(f"Google token missing 'sub': {info.keys()}")
+        raise HTTPException(status_code=401, detail="Invalid Google token (no sub)")
 
     user = db.query(User).filter((User.google_id == google_id) | (User.email == email)).first()
     if not user:
