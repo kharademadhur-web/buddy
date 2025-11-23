@@ -23,7 +23,8 @@ _default_origins = ",".join([
 _origins = os.environ.get("ALLOWED_ORIGINS", _default_origins)
 origins = [o.strip() for o in _origins.split(",") if o.strip()]
 # Also allow regex to match dynamic preview domains while keeping credentials working
-origin_regex = os.environ.get("CORS_ALLOW_ORIGIN_REGEX", r"https?://.*")
+# Default to allowing all localhost and netlify app subdomains
+origin_regex = os.environ.get("CORS_ALLOW_ORIGIN_REGEX", r"https?://(localhost|.*\.netlify\.app|.*\.onrender\.com).*")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=origins,
