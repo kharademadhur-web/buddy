@@ -1,0 +1,84 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Buddy Voice Test</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body { font-family: system-ui, Arial, sans-serif; margin: 24px; }
+    button { padding: 10px 14px; border-radius: 8px; border: 1px solid #ddd; cursor: pointer; }
+    #micBtn.listening { background: #ef4444; color: #fff; border-color: #ef4444; }
+    #log { margin-top: 12px; white-space: pre-wrap; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; color: #334155; }
+    #out { margin-top: 8px; padding: 10px; background: #f8fafc; border: 1px solid #e5e7eb; border-radius: 8px; }
+  </style>
+</head>
+<body>
+  <h1>Buddy Voice Test</h1>
+  <p>Use this page to verify microphone (STT) and speech synthesis (TTS) work in your browser.</p>
+  <div>
+    <button id="micBtn">🎙️ Start Listening</button>
+    <button id="speakBtn">🔊 Speak Sample</button>
+  </div>
+  <div id="out"></div>
+  <div id="log"></div>
+
+  <script>
+    // TTS
+    function speak(text) {
+      const synth = window.speechSynthesis;
+      if (!synth) { log('speechSynthesis not supported'); return; }
+      synth.cancel();
+      const u = new SpeechSynthesisUtterance(text);
+      u.rate = 0.95; u.pitch = 1.0; u.volume = 1.0;
+      const vs = synth.getVoices();
+      const friendly = vs.find(v => v.name.includes('Google UK English Female')) || vs.find(v => v.name.includes('Samantha')) || vs[0];
+      if (friendly) u.voice = friendly;
+      u.onend = () => log('TTS finished');
+      u.onerror = e => log('TTS error: ' + (e && e.error || e));
+      synth.speak(u);
+      log('TTS speaking: "' + text + '"');
+    }
+
+    // STT
+    function startSTT() {
+      const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+      if (!SR) { log('SpeechRecognition not supported'); return null; }
+      const rec = new SR();
+      rec.continuous = false; rec.interimResults = false; rec.lang = 'en-US';
+      rec.onstart = () => micBtn.classList.add('listening');
+      rec.onend = () => micBtn.classList.remove('listening');
+      rec.onerror = e => log('STT error: ' + (e && e.error || e));
+      rec.onresult = ev => {
+        let t = '';
+        for (let i = ev.resultIndex; i < ev.results.length; i++) t += ev.results[i][0].transcript;
+        t = t.trim();
+        if (t) {
+          out.textContent = 'Transcript: ' + t;
+          speak('You said: ' + t + '. Your voice features are working.');
+        }
+      };
+      rec.start();
+      return rec;
+    }
+
+    const micBtn = document.getElementById('micBtn');
+    const speakBtn = document.getElementById('speakBtn');
+    const out = document.getElementById('out');
+    const logBox = document.getElementById('log');
+
+    function log(msg) { logBox.textContent += (msg + '\n'); }
+
+    micBtn.onclick = () => {
+      startSTT();
+    };
+    speakBtn.onclick = () => {
+      speak('Hello! This is Buddy. Text to speech is working.');
+    };
+
+    // Warm up voices list on some browsers
+    if (window.speechSynthesis) {
+      window.speechSynthesis.onvoiceschanged = () => {};
+    }
+  </script>
+</body>
+</html>

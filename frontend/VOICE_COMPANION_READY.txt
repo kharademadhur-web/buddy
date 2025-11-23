@@ -1,0 +1,18 @@
+VOICE COMPANION UPDATED
+=======================
+
+Changes:
+- Removed Relief Mode
+- "💙 I need to talk" now starts listening immediately (speech-to-text)
+- Buddy will auto-speak replies when "Voice Replies" is enabled
+- All voice flow uses the standard /api/chat/ endpoint
+
+What to do next:
+1) Upload dist/ to Netlify (drag-and-drop)
+2) Verify in the browser:
+   - Click "💙 I need to talk" and speak
+   - Your transcript should appear and Buddy should reply by voice
+
+Notes:
+- Web Speech API requires mic permission; allow when prompted
+- For best results, use Chrome or Edge on desktop

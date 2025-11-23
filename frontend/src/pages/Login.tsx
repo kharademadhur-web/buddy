@@ -4,8 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { loginDemo } from '../api';
 
-const API_BASE = (import.meta as ImportMeta).env?.VITE_API_BASE as string | undefined || '';
-const CLIENT_ID = (import.meta as ImportMeta).env?.VITE_GOOGLE_CLIENT_ID as string | undefined || '';
+const API_BASE = (import.meta as any).env?.VITE_API_BASE as string | undefined || '';
+const CLIENT_ID = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID as string | undefined || '423787673770-pu2bgl97aovjfgee70chpflsh98c3jnu.apps.googleusercontent.com';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -14,24 +14,38 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [guestLoading, setGuestLoading] = useState(false);
 
-  // In local dev, skip the Google widget to avoid origin restrictions; send users to /chat.
+  // Check if user was redirected from a protected route
   useEffect(() => {
-    if (import.meta.env.DEV) navigate('/chat', { replace: true });
+    const token = localStorage.getItem('buddy_token');
+    // If user already has a valid token, redirect to chat
+    if (token) {
+      navigate('/chat', { replace: true });
+    }
+    // Removed auto-redirect in dev mode to allow proper login testing
   }, [navigate]);
 
   const onSuccess = async (credential: string) => {
     setLoading(true); setError('');
     try {
+      console.log('Attempting Google login to:', `${API_BASE}/api/auth/google`);
+
       const res = await fetch(`${API_BASE}/api/auth/google`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ credential })
       });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+
+      if (!res.ok) {
+        const errorText = await res.text().catch(() => '');
+        console.error('Google auth error:', res.status, errorText);
+        throw new Error(`Backend error: ${res.status} - ${errorText || 'Check if backend server is running on port 8000'}`);
+      }
+
       const data = await res.json();
       login(data.access_token, data.user);
       navigate('/chat', { replace: true });
     } catch (e: any) {
+      console.error('Login error:', e);
       setError(e?.message || 'Login failed');
     } finally {
       setLoading(false);
@@ -39,19 +53,21 @@ export default function Login() {
   };
 
   const continueAsGuest = async () => {
-    setGuestLoading(true); setError('');
+    setGuestLoading(true);
+    setError('');
     try {
-      const t = await loginDemo('demo', 'demo123');
-      login(t.access_token, { id: 0, email: 'guest@buddy.local', name: 'Guest', picture_url: null });
+      const data = await loginDemo();
+      login(data.access_token, { id: 0, email: 'guest@buddy.local', name: 'Guest', picture_url: null });
       navigate('/chat', { replace: true });
     } catch (e: any) {
-      setError(e?.message || 'Guest login failed');
+      console.error('Guest login error:', e);
+      setError(e?.message || 'Guest login failed. Please check your connection.');
     } finally {
       setGuestLoading(false);
     }
   };
 
-  const showGoogle = !import.meta.env.DEV && !!CLIENT_ID;
+  const showGoogle = !!CLIENT_ID; // Show Google login if CLIENT_ID is configured (works in both dev and prod)
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50 flex items-center justify-center p-6">
@@ -70,7 +86,10 @@ export default function Login() {
           {showGoogle && (
             <GoogleLogin
               onSuccess={(cred) => cred.credential && onSuccess(cred.credential)}
-              onError={() => setError('Google login failed')}
+              onError={() => {
+                console.error('Google login error');
+                setError('Google Sign-In Failed: check browser console for details');
+              }}
               theme="outline"
               shape="pill"
               logo_alignment="left"

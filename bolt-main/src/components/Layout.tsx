@@ -1,0 +1,99 @@
+import { ReactNode, useState } from 'react';
+import { MessageSquare, FileText, BarChart3, History, LogOut, Menu, X, Heart } from 'lucide-react';
+import { useAuth } from '../contexts/AuthContext';
+
+interface LayoutProps {
+  children: ReactNode;
+  currentPage: 'chat' | 'notes' | 'dashboard' | 'history';
+  onNavigate: (page: 'chat' | 'notes' | 'dashboard' | 'history') => void;
+}
+
+export default function Layout({ children, currentPage, onNavigate }: LayoutProps) {
+  const { signOut, user } = useAuth();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const navItems = [
+    { id: 'chat' as const, label: 'Chat', icon: MessageSquare },
+    { id: 'notes' as const, label: 'Notes', icon: FileText },
+    { id: 'dashboard' as const, label: 'Dashboard', icon: BarChart3 },
+    { id: 'history' as const, label: 'History', icon: History },
+  ];
+
+  const handleNavigate = (page: 'chat' | 'notes' | 'dashboard' | 'history') => {
+    onNavigate(page);
+    setSidebarOpen(false);
+  };
+
+  return (
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-orange-50 to-rose-50">
+      <button
+        onClick={() => setSidebarOpen(!sidebarOpen)}
+        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-lg hover:shadow-xl transition-all"
+      >
+        {sidebarOpen ? <X className="w-6 h-6 text-gray-700" /> : <Menu className="w-6 h-6 text-gray-700" />}
+      </button>
+
+      <div
+        className={`fixed inset-0 bg-black bg-opacity-50 z-30 lg:hidden transition-opacity ${
+          sidebarOpen ? 'opacity-100' : 'opacity-0 pointer-events-none'
+        }`}
+        onClick={() => setSidebarOpen(false)}
+      />
+
+      <aside
+        className={`fixed left-0 top-0 h-full bg-white shadow-xl z-40 transition-transform duration-300 w-64 ${
+          sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
+        <div className="p-6 border-b border-gray-200">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-amber-400 to-orange-500 rounded-xl flex items-center justify-center">
+              <Heart className="w-6 h-6 text-white" fill="white" />
+            </div>
+            <div>
+              <h1 className="text-lg font-bold text-gray-900">Emotional Buddy</h1>
+              <p className="text-xs text-gray-500 truncate">{user?.email}</p>
+            </div>
+          </div>
+        </div>
+
+        <nav className="p-4 space-y-2">
+          {navItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = currentPage === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleNavigate(item.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all ${
+                  isActive
+                    ? 'bg-gradient-to-r from-amber-400 to-orange-500 text-white shadow-md'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <Icon className="w-5 h-5" />
+                <span className="font-medium">{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-gray-200">
+          <button
+            onClick={signOut}
+            className="w-full flex items-center gap-3 px-4 py-3 rounded-lg text-red-600 hover:bg-red-50 transition-all"
+          >
+            <LogOut className="w-5 h-5" />
+            <span className="font-medium">Sign Out</span>
+          </button>
+        </div>
+      </aside>
+
+      <main className="lg:ml-64 min-h-screen">
+        <div className="p-4 lg:p-8 pt-16 lg:pt-8">
+          {children}
+        </div>
+      </main>
+    </div>
+  );
+}

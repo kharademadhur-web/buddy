@@ -40,52 +40,44 @@ def verify_token(token: str) -> dict:
 
 
 def get_current_user(request: Request, db: Session = Depends(get_db)) -> User:
-    import os
     from app.config import settings as _settings
-    # Consider DEV if ENV=dev or settings.debug is True
-    is_dev = (os.environ.get("ENV") == "dev") or bool(getattr(_settings, "debug", False))
+    # Check for development mode flag and allow_demo_auth setting
+    is_dev = (getattr(_settings, "debug", False)) or (getattr(_settings, "buddy_dev_mode", False))
+    allow_demo = getattr(_settings, "allow_demo_auth", False)
 
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
-        # In dev mode, allow unauthenticated requests; create a dummy user
-        if is_dev:
-            user = db.query(User).filter(User.email == "dev@localhost").first()
+        # For demo purposes in dev mode, allow unauthenticated requests with a demo user
+        if is_dev and allow_demo:
+            user = db.query(User).filter(User.email == "demo@buddy.local").first()
             if not user:
-                user = User(google_id="dev", email="dev@localhost", username="dev", name="Dev User")
+                user = User(google_id="demo", email="demo@buddy.local", username="demo", name="Demo User")
                 db.add(user)
                 db.commit()
+                db.refresh(user)
             return user
         raise HTTPException(status_code=401, detail="Not authenticated")
     token = auth.split(" ", 1)[1]
     try:
         payload = verify_token(token)
     except Exception:
-        # If token invalid but dev mode, still allow
-        if is_dev:
-            user = db.query(User).filter(User.email == "dev@localhost").first()
+        # Allow demo mode fallback if token verification fails in dev
+        if is_dev and allow_demo:
+            user = db.query(User).filter(User.email == "demo@buddy.local").first()
             if not user:
-                user = User(google_id="dev", email="dev@localhost", username="dev", name="Dev User")
+                user = User(google_id="demo", email="demo@buddy.local", username="demo", name="Demo User")
                 db.add(user)
                 db.commit()
+                db.refresh(user)
             return user
-        raise
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
     sub = payload.get("sub") if isinstance(payload, dict) else None
     if not sub:
-        if is_dev:
-            user = db.query(User).filter(User.email == "dev@localhost").first()
-            if not user:
-                user = User(google_id="dev", email="dev@localhost", username="dev", name="Dev User")
-                db.add(user)
-                db.commit()
-            return user
         raise HTTPException(status_code=401, detail="Invalid token payload")
+    
     user = db.query(User).filter((User.google_id == sub) | (User.email == sub) | (User.username == sub)).first()
     if not user:
-        if is_dev:
-            user = User(google_id="dev", email="dev@localhost", username="dev", name="Dev User")
-            db.add(user)
-            db.commit()
-            return user
         raise HTTPException(status_code=401, detail="User not found")
     return user
 

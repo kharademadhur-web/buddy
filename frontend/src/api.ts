@@ -1,7 +1,15 @@
-const API_BASE = (import.meta as ImportMeta).env?.VITE_API_BASE as string | undefined || '';
+let API_BASE = (import.meta as any).env?.VITE_API_BASE as string | undefined || '';
+// Fallback: if not provided at build time, infer in production
+if (!API_BASE && typeof window !== 'undefined') {
+  const host = window.location.host;
+  // If running on Cloudflare Pages/Workers or any non-local host, default to Render backend
+  if (!host.includes('localhost') && !host.startsWith('127.0.0.1')) {
+    API_BASE = 'https://buddy-backend-u9np.onrender.com';
+  }
+}
 
 function authHeader() {
-  const token = localStorage.getItem('buddy_token') || (import.meta.env.DEV ? 'dev' : '');
+  const token = localStorage.getItem('buddy_token') || ((import.meta as any).env.DEV ? 'dev' : '');
   return token ? { Authorization: `Bearer ${token}` } : {} as Record<string, string>;
 }
 
@@ -15,13 +23,23 @@ export type ConversationDetail = { id: number; title: string; messages: MessageO
 
 // Auth endpoints
 export async function loginDemo(username = 'demo', password = 'demo123') {
-  const res = await fetch(`${API_BASE}/api/auth/token`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password })
-  });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json() as Promise<{ access_token: string; token_type: string }>; 
+  try {
+    const res = await fetch(`${API_BASE}/api/auth/token`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    if (!res.ok) {
+      const errorText = await res.text().catch(() => 'Unknown error');
+      throw new Error(`HTTP ${res.status} - ${errorText}`);
+    }
+    return res.json() as Promise<{ access_token: string; token_type: string }>;
+  } catch (e: any) {
+    if (e instanceof TypeError && e.message.includes('fetch')) {
+      throw new Error('Network error: Backend server not reachable');
+    }
+    throw e;
+  }
 }
 
 export async function organizeNotes(text: string, detectEmotion: boolean = true) {

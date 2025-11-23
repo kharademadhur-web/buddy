@@ -7,19 +7,19 @@ logger = logging.getLogger(__name__)
 class GroqService:
     """Groq API service for ultra-fast LLM inference"""
     def __init__(self):
-        self.client = Groq(api_key=settings.GROQ_API_KEY) if settings.GROQ_API_KEY else None
-        self.model = settings.GROQ_MODEL
+        self.client = Groq(api_key=settings.groq_api_key) if settings.groq_api_key else None
+        self.model = settings.groq_model
         logger.info(f"Groq service initialized with model: {self.model}")
 
-    async def chat_completion(self, messages: list, stream: bool = False):
+    async def chat_completion(self, messages: list, stream: bool = False, *, temperature: float | None = None, max_tokens: int | None = None):
         if not self.client:
             raise RuntimeError("GROQ_API_KEY not configured")
         try:
             resp = self.client.chat.completions.create(
                 model=self.model,
                 messages=messages,
-                temperature=float(settings.GROQ_TEMPERATURE),
-                max_tokens=int(settings.GROQ_MAX_TOKENS),
+                temperature=float(temperature if temperature is not None else settings.GROQ_TEMPERATURE),
+                max_tokens=int(max_tokens if max_tokens is not None else settings.GROQ_MAX_TOKENS),
                 stream=stream,
             )
             if stream:

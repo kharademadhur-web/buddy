@@ -18,13 +18,18 @@ class Settings(BaseSettings):
 
     # Local models
     phi2_model_path: str | None = Field(default=None, alias="PHI2_MODEL_PATH")
+    emotion_model: str = Field(default="distilbert-base-uncased-finetuned-sst-2-english", alias="EMOTION_MODEL")
 
     # App
-    allowed_origins: str = Field(default="http://localhost:5173,http://localhost:4173", alias="ALLOWED_ORIGINS")
+    allowed_origins: str = Field(default="http://localhost:5173,http://localhost:4173,https://classy-begonia-426c14.netlify.app", alias="ALLOWED_ORIGINS")
     google_audience: str | None = Field(default=None, alias="GOOGLE_AUDIENCE")
-    google_client_id: str | None = Field(default=None, alias="GOOGLE_CLIENT_ID")
+    google_client_id: str | None = Field(default="423787673770-pu2bgl97aovjfgee70chpflsh98c3jnu.apps.googleusercontent.com", alias="GOOGLE_CLIENT_ID")
     google_client_secret: str | None = Field(default=None, alias="GOOGLE_CLIENT_SECRET")
     debug: bool = Field(default=True, alias="DEBUG")
+    
+    # Development/Demo mode
+    allow_demo_auth: bool = Field(default=True, alias="ALLOW_DEMO_AUTH")
+    buddy_dev_mode: bool = Field(default=True, alias="BUDDY_DEV_MODE")
 
     # AI params
     GROQ_MAX_TOKENS: int = Field(default=1024)

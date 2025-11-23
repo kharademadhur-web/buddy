@@ -1,0 +1,31 @@
+NETLIFY DEPLOYMENT INSTRUCTIONS
+================================
+
+Your voice companion feature is ready!
+
+To deploy the updated frontend to Netlify:
+
+1. Open your Netlify site dashboard:
+   https://app.netlify.com/sites/papaya-bublanina-afa881/deploys
+
+2. Click "Deploys" tab
+
+3. Find the "Drag files here" area
+
+4. Drag this entire folder into Netlify:
+   D:\Madhur\ai_assistant_project\frontend\dist
+
+5. Wait 1-2 minutes for deployment to complete
+
+WHAT'S NEW:
+- Voice Companion enabled in Relief Mode ("💙 I need to talk")
+- Click mic button to speak
+- Your voice is transcribed via Web Speech API
+- Buddy's response is automatically spoken back
+- Works in all modern browsers (Chrome, Firefox, Safari, Edge)
+
+NEXT CRITICAL STEP:
+- Redeploy backend on Render with OPENROUTER_API_KEY environment variable
+- Without it, Buddy will speak fallback responses instead of real AI
+
+Questions? Check the browser console (F12) for any errors.

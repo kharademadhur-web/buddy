@@ -14,7 +14,8 @@ export default function FileUpload({ onResult }: Props) {
     try {
       const fd = new FormData();
       fd.append('file', file);
-      const res = await fetch((import.meta as ImportMeta).env?.VITE_API_BASE + '/api/notes/import', {
+      const apiBase = (import.meta as any).env?.VITE_API_BASE || '';
+      const res = await fetch(apiBase + '/api/notes/import', {
         method: 'POST',
         body: fd,
       });
@@ -25,7 +26,7 @@ export default function FileUpload({ onResult }: Props) {
       alert('Upload failed');
     } finally {
       setUploading(false);
-      if (e.target) e.target.value = '';
+      try { if (e.target) (e.target as HTMLInputElement).value = ''; } catch {}
     }
   };
 

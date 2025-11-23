@@ -17,6 +17,8 @@ _default_origins = ",".join([
     "http://127.0.0.1:5173",
     "http://localhost:4173",
     "https://buddy-frontend.kharademadhur.workers.dev",
+    "https://papaya-bublanina-afa881.netlify.app",
+    "https://classy-begonia-426c14.netlify.app",
 ])
 _origins = os.environ.get("ALLOWED_ORIGINS", _default_origins)
 origins = [o.strip() for o in _origins.split(",") if o.strip()]
@@ -79,6 +81,7 @@ _include_router("app.routers.chat")
 _include_router("app.routers.notes")
 _include_router("app.routers.conversations")
 _include_router("app.routers.emotion")
+_include_router("app.routers.voice")
 
 # Initialize LLM services on startup
 @app.on_event("startup")
@@ -142,5 +145,18 @@ if not _route_exists("/api/chat/", "POST"):
                           "Please try again in a moment." if not text else f"You said: {text}"),
             "emotion": None,
             "conversation_id": payload.get("conversation_id") or "new",
+            "model": "placeholder"
+        }
+
+if not _route_exists("/api/chat/relief", "POST"):
+    @app.post("/api/chat/relief")
+    async def _fallback_chat_relief(payload: Dict[str, Any] = Body(...)) -> Dict[str, Any]:
+        text = payload.get("message") or payload.get("text") or ""
+        save_memory = payload.get("save_memory", True)
+        response_text = "I'm here to listen. " + (f"You mentioned: {text}. " if text else "") + "Tell me more about how you're feeling."
+        return {
+            "response": response_text,
+            "emotion": None,
+            "conversation_id": payload.get("conversation_id") or "private",
             "model": "placeholder"
         }

@@ -1,6 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { chat, ChatResponse, listConversations, getConversation, deleteConversationApi, type ConversationBrief, type MessageOut } from '../api';
 import ConversationSidebar from './ConversationSidebar';
+import VoiceControls, { type VoiceControlsHandle } from './VoiceControls';
+import VoiceSessionOverlay from './VoiceSessionOverlay';
+import { textToSpeech, initializeVoices } from '../voice';
 
 type Msg = { role: 'user' | 'assistant'; content: string; timestamp: Date; emotion?: any };
 
@@ -11,29 +14,36 @@ export default function ChatInterface() {
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [voiceEnabled, setVoiceEnabled] = useState(true);
+  const voiceRef = useRef<VoiceControlsHandle | null>(null);
+  const [voiceSessionOpen, setVoiceSessionOpen] = useState(false);
 
   const refreshConversations = async () => {
     try {
       const list = await listConversations();
       setConversations(list);
-    } catch {}
+    } catch { }
   };
 
   useEffect(() => {
     void refreshConversations();
+    // Initialize voice engines
+    initializeVoices();
   }, []);
 
   const loadConversation = async (id: number) => {
     try {
       const conv = await getConversation(id);
       setActiveId(id);
-      const mapped: Msg[] = conv.messages.map((m: MessageOut) => ({
-        role: m.role,
-        content: m.content,
-        timestamp: new Date(m.created_at)
-      }));
+      const mapped: Msg[] = conv.messages
+        .filter(m => ['user', 'assistant'].includes(m.role))
+        .map((m: MessageOut) => ({
+          role: m.role as 'user' | 'assistant',
+          content: m.content,
+          timestamp: new Date(m.created_at)
+        }));
       setMessages(mapped);
-    } catch {}
+    } catch { }
   };
 
   const newConversation = () => {
@@ -42,7 +52,7 @@ export default function ChatInterface() {
   };
 
   const deleteConversation = async (id: number) => {
-    try { await deleteConversationApi(id); await refreshConversations(); if (activeId === id) newConversation(); } catch {}
+    try { await deleteConversationApi(id); await refreshConversations(); if (activeId === id) newConversation(); } catch { }
   };
 
   const sendMessage = async () => {
@@ -69,6 +79,107 @@ export default function ChatInterface() {
     }
   };
 
+  const handleVoiceSubmit = async (text: string): Promise<string> => {
+    setInput(text); // Set the transcribed text
+    return new Promise((resolve, reject) => {
+      // Simulate a chat message with voice input
+      (async () => {
+        try {
+          setLoading(true);
+          const userMsg: Msg = { role: 'user', content: text, timestamp: new Date() };
+          setMessages((prev) => [...prev, userMsg]);
+
+          const res: ChatResponse = await chat(text, true, activeId ?? undefined);
+
+          // Update conversation ID if new
+          const convIdNum = Number(res.conversation_id);
+          if (!activeId && !Number.isNaN(convIdNum)) {
+            setActiveId(convIdNum);
+            void refreshConversations();
+          }
+
+          const aiMsg: Msg = { role: 'assistant', content: res.response, emotion: res.emotion, timestamp: new Date() };
+          setMessages((prev) => [...prev, aiMsg]);
+
+          resolve(res.response);
+        } catch (e: any) {
+          const errorMsg = 'Error: ' + (e?.message || 'Unknown');
+          setMessages((prev) => [...prev, { role: 'assistant', content: errorMsg, timestamp: new Date() }]);
+          reject(errorMsg);
+        } finally {
+          setLoading(false);
+        }
+      })();
+    });
+  };
+
+  const handleVoiceTranscript = (text: string) => {
+    setInput(text);
+    if (!loading && text.trim()) {
+      void sendMessageWithText(text);
+    }
+  };
+
+  const [spokenText, setSpokenText] = useState<string>('');
+  const [currentWordIndex, setCurrentWordIndex] = useState<number>(-1);
+
+  const handleVoiceSpeak = (text: string) => {
+    if (voiceEnabled && text) {
+      setSpokenText(text);
+      setCurrentWordIndex(-1);
+
+      textToSpeech(
+        text,
+        () => {
+          // Speech completed
+          setSpokenText('');
+          setCurrentWordIndex(-1);
+        },
+        (event) => {
+          // On boundary (word)
+          if (event.name === 'word') {
+            // charIndex is the character index in the text
+            // We can use this to highlight, but for now let's just pass the charIndex
+            // or try to estimate word index. 
+            // Actually, let's just pass the charIndex to the overlay and let it handle highlighting
+            setCurrentWordIndex(event.charIndex);
+          }
+        }
+      );
+    }
+  };
+
+  const sendMessageWithText = async (text: string) => {
+    if (!text.trim() || loading) return;
+    const userMsg: Msg = { role: 'user', content: text, timestamp: new Date() };
+    setMessages((prev) => [...prev, userMsg]);
+    const textToSend = text;
+    setInput('');
+
+    setLoading(true);
+    try {
+      const res: ChatResponse = await chat(textToSend, true, activeId ?? undefined);
+
+      // If new conversation created, set it active and refresh list
+      const convIdNum = Number(res.conversation_id);
+      if (!activeId && !Number.isNaN(convIdNum)) {
+        setActiveId(convIdNum);
+        void refreshConversations();
+      }
+
+      const aiMsg: Msg = { role: 'assistant', content: res.response, emotion: res.emotion, timestamp: new Date() };
+      setMessages((prev) => [...prev, aiMsg]);
+      if (voiceEnabled && res.response) {
+        handleVoiceSpeak(res.response);
+      }
+    } catch (e: any) {
+      setMessages((prev) => [...prev, { role: 'assistant', content: 'Error: ' + (e?.message || 'Unknown'), timestamp: new Date() }]);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
   return (
     <div style={{ display: 'flex', height: 'calc(100vh - 120px)' }}>
       {showSidebar && (
@@ -90,7 +201,10 @@ export default function ChatInterface() {
           {messages.length === 0 ? (
             <div style={{ color: '#666', textAlign: 'center', marginTop: 40 }}>
               <div style={{ fontSize: 18, marginBottom: 8 }}>👋 Hello! I'm Buddy.</div>
-              <div>Ask me anything or paste notes to discuss.</div>
+              <div>Ask me anything, paste notes, or start a voice session.</div>
+              <div style={{ marginTop: 8 }}>
+                <button onClick={() => setVoiceSessionOpen(true)} style={{ padding: '8px 12px', borderRadius: 8, background: '#e0f2fe', color: '#0c4a6e', border: '1px solid #bae6fd' }}>💙 I need to talk</button>
+              </div>
             </div>
           ) : (
             messages.map((m, i) => (
@@ -118,21 +232,51 @@ export default function ChatInterface() {
             <div style={{ marginTop: 8, fontSize: 12, color: '#334155' }}>Buddy is typing…</div>
           )}
         </div>
-        <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginTop: 8 }}>
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+            <button onClick={() => setVoiceSessionOpen(true)} style={{ padding: '6px 10px', borderRadius: 8, background: '#e0f2fe', color: '#0c4a6e', border: '1px solid #bae6fd' }}>
+              💙 I need to talk
+            </button>
+          </div>
+        </div>
+        <div style={{ marginTop: 12, display: 'flex', gap: 8, alignItems: 'center' }}>
           <input
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && sendMessage()}
-            placeholder="Type your message..."
+            placeholder="Type your message or tap microphone..."
             style={{ flex: 1, padding: '10px 12px', border: '1px solid #d1d5db', borderRadius: 8 }}
             disabled={loading}
           />
+          <VoiceControls ref={voiceRef} onTranscript={handleVoiceTranscript} onSpeak={handleVoiceSpeak} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <label style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: '#6b7280' }}>
+              <input
+                type="checkbox"
+                checked={voiceEnabled}
+                onChange={(e) => setVoiceEnabled(e.target.checked)}
+                style={{ marginRight: '4px' }}
+              />
+              Voice Replies
+            </label>
+          </div>
           <button onClick={sendMessage} disabled={loading || !input.trim()} style={{ padding: '10px 14px', borderRadius: 8, background: '#2563eb', color: '#fff', border: 'none', cursor: 'pointer' }}>
             Send
           </button>
         </div>
       </div>
+      {/* Full-screen voice session overlay */}
+      <VoiceSessionOverlay
+        open={voiceSessionOpen}
+        onClose={() => {
+          setVoiceSessionOpen(false);
+          setSpokenText(''); // Clear text when closing
+        }}
+        onTranscript={handleVoiceTranscript}
+        spokenText={spokenText}
+        currentCharIndex={currentWordIndex}
+      />
     </div>
   );
 }

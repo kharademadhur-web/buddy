@@ -17,10 +17,18 @@ class OpenRouterService:
     async def chat_completion(self, messages: list, stream: bool = False):
         if not self.client:
             raise RuntimeError("OPENROUTER_API_KEY not configured")
-        resp = self.client.chat.completions.create(model=self.model, messages=messages, stream=stream)
-        if stream:
-            return resp
-        return resp.choices[0].message.content
+        try:
+            # OpenAI SDK is synchronous, but we can call it directly in async context
+            # as it's just an HTTP call wrapped in sync code
+            resp = self.client.chat.completions.create(model=self.model, messages=messages, stream=stream)
+            if stream:
+                return resp
+            content = resp.choices[0].message.content
+            logger.info(f"OpenRouter response received: {len(content) if content else 0} chars")
+            return content
+        except Exception as e:
+            logger.error(f"OpenRouter API error: {str(e)}")
+            raise
 
     async def extract_topics(self, text: str) -> list[str]:
         prompt = (

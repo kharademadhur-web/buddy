@@ -9,7 +9,7 @@ class Phi2Service:
     """Local emotion detection pipeline (privacy-focused)."""
     def __init__(self):
         self.device = 0 if torch.cuda.is_available() else -1
-        model = settings.EMOTION_MODEL
+        model = settings.emotion_model
         self.analyzer = pipeline("sentiment-analysis", model=model, device=self.device)
         logger.info("Emotion detection model loaded")
 

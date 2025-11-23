@@ -5,7 +5,7 @@ import Dashboard from './pages/Dashboard';
 import ProtectedRoute from './components/ProtectedRoute';
 import { AuthProvider } from './contexts/AuthContext';
 
-const CLIENT_ID = (import.meta as ImportMeta).env?.VITE_GOOGLE_CLIENT_ID as string | undefined || '';
+const CLIENT_ID = (import.meta as any).env?.VITE_GOOGLE_CLIENT_ID as string | undefined || '';
 
 export default function App() {
   return (
@@ -16,11 +16,7 @@ export default function App() {
             <Route path="/login" element={<Login />} />
             <Route
               path="/"
-              element={
-                <ProtectedRoute>
-                  <Navigate to="/chat" replace />
-                </ProtectedRoute>
-              }
+              element={<Navigate to="/chat" replace />}
             />
             <Route
               path="/chat"
