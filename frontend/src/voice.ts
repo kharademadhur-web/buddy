@@ -163,14 +163,11 @@ export function startSpeechRecognition(
   let timeoutId: any = null;
   const clearTimer = () => { if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; } };
 
+  let hasError = false;
+
   recognition.onstart = () => {
     console.log('Speech recognition started with language:', recognition.lang);
-    // Auto-cancel if nothing is heard for 8s (no-speech edge cases)
-    // clearTimer();
-    // timeoutId = setTimeout(() => {
-    //   try { recognition.stop(); } catch { }
-    //   onError?.('no-speech');
-    // }, 20000);
+    hasError = false;
   };
 
   recognition.onresult = (event: any) => {
@@ -187,28 +184,26 @@ export function startSpeechRecognition(
   };
 
   recognition.onspeechend = () => {
-    // Some engines require explicit stop when speech ends
     try { recognition.stop(); } catch { }
   };
 
   recognition.onend = () => {
     clearTimer();
-    // If nothing fired onresult, propagate a benign end only if caller wants errors
-    // Do not call onError here to avoid duplicate error paths.
-
-    // Auto-restart if it stopped but we didn't ask it to (e.g. silence timeout by browser)
-    // We can simulate a 'no-speech' error to trigger the retry logic in the UI
-    onError?.('no-speech');
+    // Only report no-speech if no other error occurred
+    if (!hasError) {
+      onError?.('no-speech');
+    }
   };
 
   recognition.onerror = (event: any) => {
     clearTimer();
     if (event.error === 'aborted') return;
 
+    hasError = true;
+
     // If language-not-supported error and we were trying Hindi, fallback to English
     if (event.error === 'language-not-supported' && recognition.lang === 'hi-IN') {
       console.warn('Hindi not supported, falling back to English');
-      // Retry with English
       setTimeout(() => {
         startSpeechRecognition(onResult, onError, 'en-US');
       }, 100);
