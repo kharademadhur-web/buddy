@@ -2,6 +2,13 @@
  * Web Speech API utilities for voice companion
  */
 
+// Detect if text contains Hindi/Devanagari characters
+function containsHindi(text: string): boolean {
+  // Check for Devanagari Unicode range (U+0900 to U+097F)
+  const devanagariRegex = /[\u0900-\u097F]/;
+  return devanagariRegex.test(text);
+}
+
 // Text-to-Speech using Web Speech API
 export function textToSpeech(
   text: string,
@@ -33,27 +40,58 @@ export function textToSpeech(
   }
 
   const utterance = new SpeechSynthesisUtterance(text);
-  utterance.rate = 0.95; // Slightly slower for better comprehension
-  utterance.pitch = 1.0;
-  utterance.volume = 1.0;
-  utterance.lang = 'en-US';
 
-  // Better voice selection with more Windows-specific options
-  const friendlyVoice =
-    voices.find(v => v.name.includes('Microsoft Zira')) ||
-    voices.find(v => v.name.includes('Microsoft David')) ||
-    voices.find(v => v.name.includes('Google UK English Female')) ||
-    voices.find(v => v.name.includes('Samantha')) ||
-    voices.find(v => v.name.includes('English US') && v.localService) ||
-    voices.find(v => v.lang.startsWith('en') && v.localService) || // Prefer local English voices
-    voices.find(v => v.default) ||
-    voices[0];
+  // Detect language and select appropriate voice
+  const isHindi = containsHindi(text);
 
-  if (friendlyVoice) {
-    utterance.voice = friendlyVoice;
-    console.log('Using voice:', friendlyVoice.name, friendlyVoice.lang);
+  if (isHindi) {
+    // Hindi voice settings - slower and clearer
+    utterance.rate = 0.85; // Slower for clearer Hindi pronunciation
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    utterance.lang = 'hi-IN'; // Hindi language code
+
+    // Select Hindi voice - prefer Microsoft Hemant (male) or Kalpana (female)
+    const hindiVoice =
+      voices.find(v => v.name.includes('Microsoft Hemant')) || // Male Hindi voice
+      voices.find(v => v.name.includes('Microsoft Kalpana')) || // Female Hindi voice
+      voices.find(v => v.name.includes('Swara')) || // Alternative Hindi voice
+      voices.find(v => v.lang === 'hi-IN') || // Any Hindi voice
+      voices.find(v => v.lang.startsWith('hi')) || // Any Hindi variant
+      voices.find(v => v.name.includes('Google हिन्दी')) || // Google Hindi
+      voices.find(v => v.name.toLowerCase().includes('hindi')); // Any voice with "hindi" in name
+
+    if (hindiVoice) {
+      utterance.voice = hindiVoice;
+      console.log('Using Hindi voice:', hindiVoice.name, hindiVoice.lang);
+    } else {
+      console.warn('No Hindi voice found, using default (may sound unclear)');
+      console.log('Available voices:', voices.map(v => `${v.name} (${v.lang})`).join(', '));
+    }
   } else {
-    console.warn('No suitable voice found, using default');
+    // English voice settings
+    utterance.rate = 0.95; // Slightly slower for better comprehension
+    utterance.pitch = 1.0;
+    utterance.volume = 1.0;
+    utterance.lang = 'en-US';
+
+    // Better voice selection with more Windows-specific options
+    const friendlyVoice =
+      voices.find(v => v.name.includes('Microsoft Zira')) ||
+      voices.find(v => v.name.includes('Microsoft David')) ||
+      voices.find(v => v.name.includes('Google UK English Female')) ||
+      voices.find(v => v.name.includes('Samantha')) ||
+      voices.find(v => v.name.includes('English US') && v.localService) ||
+      voices.find(v => v.lang.startsWith('en') && v.localService) || // Prefer local English voices
+      voices.find(v => v.default) ||
+      voices[0];
+
+    if (friendlyVoice) {
+      utterance.voice = friendlyVoice;
+      console.log('Using English voice:', friendlyVoice.name, friendlyVoice.lang);
+    } else {
+      console.warn('No suitable voice found, using default');
+    }
   }
 
   utterance.onstart = () => {
@@ -87,10 +125,11 @@ export function textToSpeech(
   }, 100);
 }
 
-// Speech-to-Text using Web Speech API
+// Speech-to-Text using Web Speech API with multi-language support
 export function startSpeechRecognition(
   onResult: (text: string) => void,
-  onError?: (error: string) => void
+  onError?: (error: string) => void,
+  language: 'en-US' | 'hi-IN' | 'auto' = 'auto' // Support Hindi, English, or auto-detect
 ): () => void {
   const SpeechRecognition =
     (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -109,13 +148,23 @@ export function startSpeechRecognition(
   const recognition = new SpeechRecognition();
   recognition.continuous = false;
   recognition.interimResults = false;
-  recognition.lang = 'en-US';
+
+  // Set language - default to Hindi for better local language support
+  // Users can switch between Hindi and English
+  if (language === 'auto') {
+    // Try Hindi first, as it's the primary language we want to support
+    recognition.lang = 'hi-IN';
+  } else {
+    recognition.lang = language;
+  }
+
   (recognition as any).maxAlternatives = 1;
 
   let timeoutId: any = null;
   const clearTimer = () => { if (timeoutId) { clearTimeout(timeoutId); timeoutId = null; } };
 
   recognition.onstart = () => {
+    console.log('Speech recognition started with language:', recognition.lang);
     // Auto-cancel if nothing is heard for 8s (no-speech edge cases)
     // clearTimer();
     // timeoutId = setTimeout(() => {
@@ -131,7 +180,10 @@ export function startSpeechRecognition(
       transcript += event.results[i][0].transcript;
     }
     const t = transcript.trim();
-    if (t) onResult(t);
+    if (t) {
+      console.log('Recognized text:', t, 'Language:', recognition.lang);
+      onResult(t);
+    }
   };
 
   recognition.onspeechend = () => {
@@ -152,6 +204,17 @@ export function startSpeechRecognition(
   recognition.onerror = (event: any) => {
     clearTimer();
     if (event.error === 'aborted') return;
+
+    // If language-not-supported error and we were trying Hindi, fallback to English
+    if (event.error === 'language-not-supported' && recognition.lang === 'hi-IN') {
+      console.warn('Hindi not supported, falling back to English');
+      // Retry with English
+      setTimeout(() => {
+        startSpeechRecognition(onResult, onError, 'en-US');
+      }, 100);
+      return;
+    }
+
     onError?.(event?.error || 'unknown');
   };
 

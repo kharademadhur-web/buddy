@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buddy AI - Quick Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .test-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        button {
+            background: #2563eb;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover {
+            background: #1d4ed8;
+        }
+        .result {
+            margin-top: 10px;
+            padding: 10px;
+            background: #f0f0f0;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+        .success {
+            background: #d1fae5;
+            color: #065f46;
+        }
+        .error {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+        h1 {
+            color: #1f2937;
+        }
+        h2 {
+            color: #374151;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🤖 Buddy AI - Quick Test Page</h1>
+    
+    <div class="test-section">
+        <h2>1. Backend Health Check</h2>
+        <button onclick="testHealth()">Test Backend Connection</button>
+        <div id="health-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>2. Guest Login Test</h2>
+        <button onclick="testGuestLogin()">Test Guest Login</button>
+        <div id="login-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>3. Chat Test</h2>
+        <input type="text" id="chat-input" placeholder="Type a message..." style="width: 60%; padding: 8px; border: 1px solid #ddd; border-radius: 4px;">
+        <button onclick="testChat()">Send Message</button>
+        <div id="chat-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>4. Voice Test</h2>
+        <button onclick="testVoice()">Test Speech Recognition</button>
+        <button onclick="testTTS()">Test Text-to-Speech</button>
+        <div id="voice-result" class="result" style="display:none;"></div>
+    </div>
+
+    <div class="test-section">
+        <h2>5. Google Login Status</h2>
+        <p>Google Client ID: <code>423787673770-pu2bgl97aovjfgee70chpflsh98c3jnu.apps.googleusercontent.com</code></p>
+        <p><strong>Note:</strong> Google login requires the backend .env file to have the correct GOOGLE_CLIENT_ID value.</p>
+        <button onclick="checkGoogleConfig()">Check Google Config</button>
+        <div id="google-result" class="result" style="display:none;"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://localhost:8000';
+        let authToken = null;
+
+        async function testHealth() {
+            const resultDiv = document.getElementById('health-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = 'Testing...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/health`);
+                const data = await response.json();
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ Backend is healthy!\n${JSON.stringify(data, null, 2)}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Error: ${error.message}\n\nMake sure backend is running on port 8000`;
+            }
+        }
+
+        async function testGuestLogin() {
+            const resultDiv = document.getElementById('login-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = 'Logging in as guest...';
+
+            try {
+                const response = await fetch(`${API_BASE}/api/auth/token`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ username: 'demo', password: 'demo123' })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                authToken = data.access_token;
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ Guest login successful!\nToken: ${authToken.substring(0, 20)}...`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+            }
+        }
+
+        async function testChat() {
+            const resultDiv = document.getElementById('chat-result');
+            const input = document.getElementById('chat-input');
+            const message = input.value || 'Hello, can you hear me?';
+
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = 'Sending message...';
+
+            if (!authToken) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Please login first (click "Test Guest Login")';
+                return;
+            }
+
+            try {
+                const response = await fetch(`${API_BASE}/api/chat/`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Authorization': `Bearer ${authToken}`
+                    },
+                    body: JSON.stringify({
+                        message: message,
+                        detect_emotion: true
+                    })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
+
+                const data = await response.json();
+                resultDiv.className = 'result success';
+                resultDiv.textContent = `✅ AI Response:\n\n${data.response}\n\nEmotion: ${data.emotion?.label || 'N/A'}\nModel: ${data.model}`;
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+            }
+        }
+
+        function testVoice() {
+            const resultDiv = document.getElementById('voice-result');
+            resultDiv.style.display = 'block';
+
+            if (!('webkitSpeechRecognition' in window) && !('SpeechRecognition' in window)) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Speech recognition not supported in this browser.\nTry Chrome or Edge.';
+                return;
+            }
+
+            resultDiv.className = 'result success';
+            resultDiv.textContent = '✅ Speech recognition is supported!\nClick the microphone and speak...';
+
+            const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+            const recognition = new SpeechRecognition();
+            recognition.lang = 'en-US';
+            recognition.continuous = false;
+
+            recognition.onresult = (event) => {
+                const transcript = event.results[0][0].transcript;
+                resultDiv.textContent = `✅ You said: "${transcript}"`;
+            };
+
+            recognition.onerror = (event) => {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Error: ${event.error}`;
+            };
+
+            recognition.start();
+        }
+
+        function testTTS() {
+            const resultDiv = document.getElementById('voice-result');
+            resultDiv.style.display = 'block';
+
+            if (!('speechSynthesis' in window)) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = '❌ Text-to-speech not supported in this browser.';
+                return;
+            }
+
+            const utterance = new SpeechSynthesisUtterance('Hello! I am Buddy, your AI assistant. I can hear you and speak to you.');
+            utterance.rate = 1.0;
+            utterance.pitch = 1.0;
+
+            utterance.onend = () => {
+                resultDiv.className = 'result success';
+                resultDiv.textContent = '✅ Text-to-speech is working!';
+            };
+
+            utterance.onerror = (event) => {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ TTS Error: ${event.error}`;
+            };
+
+            window.speechSynthesis.speak(utterance);
+            resultDiv.className = 'result';
+            resultDiv.textContent = '🔊 Speaking...';
+        }
+
+        async function checkGoogleConfig() {
+            const resultDiv = document.getElementById('google-result');
+            resultDiv.style.display = 'block';
+            resultDiv.className = 'result';
+            resultDiv.textContent = 'Checking Google OAuth configuration...';
+
+            try {
+                // Try to make a test request to the Google auth endpoint
+                const response = await fetch(`${API_BASE}/api/auth/google`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ credential: 'test' })
+                });
+
+                const text = await response.text();
+                
+                if (text.includes('GOOGLE_CLIENT_ID not configured')) {
+                    resultDiv.className = 'result error';
+                    resultDiv.textContent = '❌ Google Client ID is NOT configured in backend .env file\n\nFix: Edit backend/.env and set:\nGOOGLE_CLIENT_ID=423787673770-pu2bgl97aovjfgee70chpflsh98c3jnu.apps.googleusercontent.com';
+                } else if (text.includes('Invalid Google token')) {
+                    resultDiv.className = 'result success';
+                    resultDiv.textContent = '✅ Google Client ID is configured!\n(Got expected "Invalid token" error, which means the endpoint is working)';
+                } else {
+                    resultDiv.className = 'result';
+                    resultDiv.textContent = `Response: ${text}`;
+                }
+            } catch (error) {
+                resultDiv.className = 'result error';
+                resultDiv.textContent = `❌ Error: ${error.message}`;
+            }
+        }
+
+        // Auto-run health check on load
+        window.addEventListener('load', () => {
+            testHealth();
+        });
+    </script>
+</body>
+</html>
