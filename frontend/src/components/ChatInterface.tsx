@@ -332,7 +332,7 @@ export default function ChatInterface() {
           </div>
 
           <div className="flex gap-2 items-end bg-gray-50 p-2 rounded-xl border border-gray-200 focus-within:border-blue-400 focus-within:ring-2 focus-within:ring-blue-100 transition-all">
-            <VoiceControls ref={voiceRef} onTranscript={handleVoiceTranscript} onSpeak={handleVoiceSpeak} />
+            <VoiceControls ref={voiceRef} onTranscript={handleVoiceTranscript} onSpeak={handleVoiceSpeak} language={language} />
 
             <textarea
               value={input}
@@ -387,6 +387,7 @@ export default function ChatInterface() {
         onTranscript={handleVoiceTranscript}
         spokenText={spokenText}
         currentCharIndex={currentWordIndex}
+        language={language}
       />
 
       {/* Onboarding Modal */}

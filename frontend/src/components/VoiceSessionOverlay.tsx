@@ -8,13 +8,21 @@ interface VoiceSessionOverlayProps {
   onTranscript: (text: string) => void;
   spokenText?: string;
   currentCharIndex?: number;
+  language?: 'en-US' | 'hi-IN' | 'auto';
 }
 
 /**
  * Full-screen voice session UI: big animated orb, End Session label, cancel + mic buttons.
  * Used when the user taps "I need to talk".
  */
-export default function VoiceSessionOverlay({ open, onClose, onTranscript, spokenText, currentCharIndex = -1 }: VoiceSessionOverlayProps) {
+export default function VoiceSessionOverlay({
+  open,
+  onClose,
+  onTranscript,
+  spokenText,
+  currentCharIndex = -1,
+  language = 'en-US'
+}: VoiceSessionOverlayProps) {
   const [isListening, setIsListening] = useState(false);
   const [userStopped, setUserStopped] = useState(false);
 
@@ -63,7 +71,8 @@ export default function VoiceSessionOverlay({ open, onClose, onTranscript, spoke
             if (!userStopped) startListening();
           }, 500);
         }
-      }
+      },
+      language // Pass the selected language
     );
   };
 
