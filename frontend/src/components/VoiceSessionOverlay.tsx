@@ -81,27 +81,33 @@ export default function VoiceSessionOverlay({
         (err) => {
           if (!isMounted.current) return;
           console.error('Voice session error:', err);
-          setIsListening(false);
 
           // Handle specific errors
           if (err === 'no-speech') {
             // If no speech, just restart silently a few times
-            if (retryCount < 3) {
+            // Don't set isListening(false) to avoid UI flashing
+            if (retryCount < 10) { // Increased retry count for better continuity
               setRetryCount(prev => prev + 1);
               setTimeout(() => {
                 if (isMounted.current && open) startListening();
-              }, 500);
+              }, 200); // Reduced delay for faster restart
             } else {
+              setIsListening(false);
               setError("I didn't hear anything. Click the mic to try again.");
             }
-          } else if (err === 'network') {
-            setError("Network error. Please check your connection.");
-          } else if (err === 'not-allowed' || err === 'permission-denied') {
-            setError("Microphone access denied. Please allow access in browser settings.");
-          } else if (err === 'aborted') {
-            // Ignore aborted
           } else {
-            setError(`Error: ${err}. Click mic to retry.`);
+            // For other errors, stop listening state immediately
+            setIsListening(false);
+
+            if (err === 'network') {
+              setError("Network error. Please check your connection.");
+            } else if (err === 'not-allowed' || err === 'permission-denied') {
+              setError("Microphone access denied. Please allow access in browser settings.");
+            } else if (err === 'aborted') {
+              // Ignore aborted
+            } else {
+              setError(`Error: ${err}. Click mic to retry.`);
+            }
           }
         },
         language
