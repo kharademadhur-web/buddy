@@ -129,7 +129,7 @@ export function textToSpeech(
 export function startSpeechRecognition(
   onResult: (text: string) => void,
   onError?: (error: string) => void,
-  language: 'en-US' | 'hi-IN' | 'auto' = 'auto' // Support Hindi, English, or auto-detect
+  language: 'en-US' | 'hi-IN' | 'auto' = 'en-US' // Default to English for offline support
 ): () => void {
   const SpeechRecognition =
     (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
@@ -149,11 +149,11 @@ export function startSpeechRecognition(
   recognition.continuous = false;
   recognition.interimResults = false;
 
-  // Set language - default to Hindi for better local language support
-  // Users can switch between Hindi and English
+  // Set language - default to English for offline support
+  // Hindi requires internet connection and may cause network errors
   if (language === 'auto') {
-    // Try Hindi first, as it's the primary language we want to support
-    recognition.lang = 'hi-IN';
+    // Use English by default (works offline)
+    recognition.lang = 'en-US';
   } else {
     recognition.lang = language;
   }

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { startSpeechRecognition, stopSpeech } from '../voice';
 import AnimatedGalaxy from './AnimatedGalaxy';
 
@@ -18,6 +18,17 @@ export default function VoiceSessionOverlay({ open, onClose, onTranscript, spoke
   const [isListening, setIsListening] = useState(false);
   const [userStopped, setUserStopped] = useState(false);
 
+  // Auto-start listening when overlay opens
+  useEffect(() => {
+    if (open && !isListening && !userStopped) {
+      // Small delay to ensure overlay is fully rendered
+      const timer = setTimeout(() => {
+        startListening();
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [open]);
+
   if (!open) return null;
 
   const startListening = () => {
@@ -28,6 +39,12 @@ export default function VoiceSessionOverlay({ open, onClose, onTranscript, spoke
         setIsListening(false);
         if (text.trim()) {
           onTranscript(text);
+          // Auto-restart listening after processing the transcript
+          setTimeout(() => {
+            if (!userStopped) {
+              startListening();
+            }
+          }, 500);
         }
       },
       (err) => {
@@ -39,11 +56,12 @@ export default function VoiceSessionOverlay({ open, onClose, onTranscript, spoke
         console.error('Voice session STT error:', err);
         setIsListening(false);
 
-        // Auto-restart on 'no-speech' if not stopped by user
+        // Don't auto-retry on network errors to avoid infinite loops
+        // Only retry on no-speech if user hasn't stopped
         if (!userStopped && err === 'no-speech') {
           setTimeout(() => {
             if (!userStopped) startListening();
-          }, 200);
+          }, 500);
         }
       }
     );
@@ -52,7 +70,9 @@ export default function VoiceSessionOverlay({ open, onClose, onTranscript, spoke
   const handleMicClick = () => {
     if (isListening) {
       // If clicking while listening, stop it.
-      handleEndSession();
+      setIsListening(false);
+      setUserStopped(true);
+      stopSpeech();
     } else {
       startListening();
     }
