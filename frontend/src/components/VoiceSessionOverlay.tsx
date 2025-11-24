@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { startSpeechRecognition, stopSpeech } from '../voice';
 import AnimatedGalaxy from './AnimatedGalaxy';
+import { AlertCircle, RefreshCw, Mic, X } from 'lucide-react';
 
 interface VoiceSessionOverlayProps {
   open: boolean;
@@ -11,10 +12,6 @@ interface VoiceSessionOverlayProps {
   language?: 'en-US' | 'hi-IN' | 'auto';
 }
 
-/**
- * Full-screen voice session UI: big animated orb, End Session label, cancel + mic buttons.
- * Used when the user taps "I need to talk".
- */
 export default function VoiceSessionOverlay({
   open,
   onClose,
@@ -24,170 +21,180 @@ export default function VoiceSessionOverlay({
   language = 'en-US'
 }: VoiceSessionOverlayProps) {
   const [isListening, setIsListening] = useState(false);
-  const [userStopped, setUserStopped] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
+  const stopRef = useRef<(() => void) | null>(null);
+  const isMounted = useRef(true);
+
+  useEffect(() => {
+    isMounted.current = true;
+    return () => { isMounted.current = false; };
+  }, []);
 
   // Auto-start listening when overlay opens
   useEffect(() => {
-    if (open && !isListening && !userStopped) {
+    if (open) {
+      setError(null);
+      setRetryCount(0);
       // Small delay to ensure overlay is fully rendered
       const timer = setTimeout(() => {
-        startListening();
-      }, 300);
-      return () => clearTimeout(timer);
+        if (isMounted.current) startListening();
+      }, 500);
+      return () => {
+        clearTimeout(timer);
+        stopSession();
+      };
+    } else {
+      stopSession();
     }
-  }, [open]);
+  }, [open, language]);
 
-  if (!open) return null;
+  const stopSession = () => {
+    if (stopRef.current) {
+      stopRef.current();
+      stopRef.current = null;
+    }
+    stopSpeech();
+    setIsListening(false);
+  };
 
   const startListening = () => {
-    setUserStopped(false);
+    stopSession(); // Ensure previous session is cleaned up
+    setError(null);
     setIsListening(true);
-    startSpeechRecognition(
-      (text) => {
-        setIsListening(false);
-        if (text.trim()) {
-          onTranscript(text);
-          // Auto-restart listening after processing the transcript
-          setTimeout(() => {
-            if (!userStopped) {
-              startListening();
+
+    try {
+      stopRef.current = startSpeechRecognition(
+        (text) => {
+          if (!isMounted.current) return;
+          setIsListening(false);
+          if (text.trim()) {
+            onTranscript(text);
+            // Auto-restart listening after processing
+            setTimeout(() => {
+              if (isMounted.current && open) {
+                startListening();
+              }
+            }, 1000);
+          }
+        },
+        (err) => {
+          if (!isMounted.current) return;
+          console.error('Voice session error:', err);
+          setIsListening(false);
+
+          // Handle specific errors
+          if (err === 'no-speech') {
+            // If no speech, just restart silently a few times
+            if (retryCount < 3) {
+              setRetryCount(prev => prev + 1);
+              setTimeout(() => {
+                if (isMounted.current && open) startListening();
+              }, 500);
+            } else {
+              setError("I didn't hear anything. Click the mic to try again.");
             }
-          }, 500);
-        }
-      },
-      (err) => {
-        // Ignore 'aborted' as it usually means we stopped it or it was interrupted by another start
-        if (err === 'aborted') {
-          return;
-        }
-
-        console.error('Voice session STT error:', err);
-        setIsListening(false);
-
-        // Don't auto-retry on network errors to avoid infinite loops
-        // Only retry on no-speech if user hasn't stopped
-        if (!userStopped && err === 'no-speech') {
-          setTimeout(() => {
-            if (!userStopped) startListening();
-          }, 500);
-        }
-      },
-      language // Pass the selected language
-    );
+          } else if (err === 'network') {
+            setError("Network error. Please check your connection.");
+          } else if (err === 'not-allowed' || err === 'permission-denied') {
+            setError("Microphone access denied. Please allow access in browser settings.");
+          } else if (err === 'aborted') {
+            // Ignore aborted
+          } else {
+            setError(`Error: ${err}. Click mic to retry.`);
+          }
+        },
+        language
+      );
+    } catch (e: any) {
+      console.error("Failed to start speech recognition:", e);
+      setError("Could not start microphone. " + e.message);
+      setIsListening(false);
+    }
   };
 
   const handleMicClick = () => {
     if (isListening) {
-      // If clicking while listening, stop it.
-      setIsListening(false);
-      setUserStopped(true);
-      stopSpeech();
+      stopSession();
     } else {
       startListening();
     }
   };
 
-  const handleEndSession = () => {
-    setUserStopped(true);
-    stopSpeech();
-    setIsListening(false);
+  const handleClose = () => {
+    stopSession();
     onClose();
   };
 
-  const handleCancel = () => {
-    setUserStopped(true);
-    stopSpeech();
-    setIsListening(false);
-    onClose();
-  };
+  if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-40 bg-white flex flex-col">
-      {/* Top bar with simple settings icon placeholder */}
-      <div className="flex items-center justify-end px-6 py-4">
+    <div className="fixed inset-0 z-50 bg-white flex flex-col animate-in fade-in duration-200">
+      {/* Top bar */}
+      <div className="flex items-center justify-between px-6 py-4 bg-white/80 backdrop-blur-sm absolute top-0 left-0 right-0 z-10">
+        <div className="flex items-center gap-2 text-sm font-medium text-gray-500">
+          <span className={`w-2 h-2 rounded-full ${isListening ? 'bg-red-500 animate-pulse' : 'bg-gray-300'}`} />
+          {isListening ? 'Listening...' : 'Paused'}
+        </div>
         <button
-          type="button"
+          onClick={handleClose}
+          className="p-2 rounded-full hover:bg-gray-100 text-gray-500 transition-colors"
           aria-label="Close voice session"
-          onClick={handleCancel}
-          className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
         >
-          <span className="text-xl">×</span>
+          <X className="w-6 h-6" />
         </button>
       </div>
 
-      {/* Center animated galaxy */}
-      <div className="flex-1 flex flex-col items-center justify-center relative overflow-hidden">
-        <div className="w-80 h-80 relative mb-8">
+      {/* Center Content */}
+      <div className="flex-1 flex flex-col items-center justify-center relative p-4">
+        {/* Error Message */}
+        {error && (
+          <div className="absolute top-20 left-1/2 -translate-x-1/2 bg-red-50 text-red-600 px-4 py-2 rounded-full text-sm font-medium flex items-center gap-2 shadow-sm animate-in slide-in-from-top-4">
+            <AlertCircle className="w-4 h-4" />
+            {error}
+          </div>
+        )}
+
+        <div className="w-64 h-64 md:w-96 md:h-96 relative mb-8 flex items-center justify-center">
           <AnimatedGalaxy isListening={isListening} />
         </div>
 
-        {/* Subtitles / Spoken Text */}
-        {spokenText && (
-          <div className="px-8 max-w-3xl text-center">
-            <p className="text-2xl font-medium text-slate-700 leading-relaxed transition-all duration-200">
-              {spokenText.split(' ').map((word, i) => {
-                // Simple estimation: if we have char index, we can try to find which word it is.
-                // But splitting by space is imperfect.
-                // A better way is to just highlight everything up to currentCharIndex.
-                // Let's try to highlight the "current" word based on char index.
-
-                // Reconstruct the text to find word boundaries
-                // This is complex to do perfectly in React render.
-                // Simplified approach: Render full text, and style a span based on char index range.
-                return null;
-              })}
-              {/* Better approach: Render text and use a mask or just simple text for now if highlighting is hard */}
-
-              {/* Let's try a simpler highlighting: just show the text. 
-                  If we want "description of every word", maybe just showing the text is enough?
-                  The user said "description of every word". 
-                  Let's try to highlight the word being spoken.
-              */}
+        {/* Spoken Text / Subtitles */}
+        <div className="max-w-2xl w-full text-center space-y-4 min-h-[100px]">
+          {spokenText ? (
+            <p className="text-2xl md:text-3xl font-medium text-slate-800 leading-relaxed">
+              {spokenText}
             </p>
-            <div className="text-2xl font-medium text-slate-700 leading-relaxed">
-              {(() => {
-                if (currentCharIndex === -1) return spokenText;
-                const before = spokenText.slice(0, currentCharIndex);
-                // Find the end of the current word
-                const rest = spokenText.slice(currentCharIndex);
-                const wordEnd = rest.search(/\s/) === -1 ? rest.length : rest.search(/\s/);
-                const current = rest.slice(0, wordEnd);
-                const after = rest.slice(wordEnd);
-
-                return (
-                  <>
-                    <span className="text-slate-400">{before}</span>
-                    <span className="text-slate-900 scale-110 inline-block transition-transform">{current}</span>
-                    <span className="text-slate-400">{after}</span>
-                  </>
-                );
-              })()}
-            </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-xl text-slate-400 font-light">
+              {isListening ? "Listening..." : error ? "Stopped" : "Tap the microphone to speak"}
+            </p>
+          )}
+        </div>
       </div>
 
-      {/* Bottom controls */}
-      <div className="pb-10 flex flex-col items-center gap-4">
-        <div className="px-4 py-1 rounded-full bg-black text-white text-sm">End Session</div>
-        <div className="flex items-center gap-14">
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="w-14 h-14 rounded-full border border-slate-300 flex items-center justify-center text-slate-700 hover:bg-slate-100"
-          >
-            <span className="text-xl">×</span>
-          </button>
-          <button
-            type="button"
-            onClick={handleMicClick}
-            disabled={isListening}
-            className={`w-14 h-14 rounded-full flex items-center justify-center text-white shadow-md transition-colors ${isListening ? 'bg-red-500' : 'bg-slate-900 hover:bg-slate-800'
-              }`}
-            aria-label={isListening ? 'Listening…' : 'Start talking'}
-          >
-            <span className="text-xl">🎤</span>
-          </button>
+      {/* Bottom Controls */}
+      <div className="pb-12 flex flex-col items-center gap-6">
+        <button
+          onClick={handleMicClick}
+          className={`
+            w-20 h-20 rounded-full flex items-center justify-center shadow-lg transition-all duration-300 scale-100 hover:scale-105 active:scale-95
+            ${isListening
+              ? 'bg-red-500 text-white shadow-red-200 ring-4 ring-red-100'
+              : 'bg-slate-900 text-white shadow-slate-200 hover:bg-slate-800'}
+          `}
+          aria-label={isListening ? "Stop listening" : "Start listening"}
+        >
+          {isListening ? (
+            <span className="animate-pulse"><Mic className="w-8 h-8" /></span>
+          ) : error ? (
+            <RefreshCw className="w-8 h-8" />
+          ) : (
+            <Mic className="w-8 h-8" />
+          )}
+        </button>
+        <div className="text-sm text-gray-400 font-medium uppercase tracking-wider">
+          {isListening ? "Tap to Stop" : "Tap to Speak"}
         </div>
       </div>
     </div>
