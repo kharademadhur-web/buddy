@@ -7,6 +7,11 @@ export default defineConfig({
       jsxRuntime: 'automatic'
     })
   ],
+  server: {
+    host: '0.0.0.0',
+    port: 12001,
+    allowedHosts: true
+  },
   build: {
     outDir: 'dist',
     sourcemap: false
