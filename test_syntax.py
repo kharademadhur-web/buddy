@@ -30,7 +30,7 @@ def test_import(module_name, filepath):
     return test_file_syntax(filepath)
 
 if __name__ == "__main__":
-    project_dir = r"D:\Madhur\ai_assistant_project"
+    project_dir = os.path.dirname(os.path.abspath(__file__))
     
     python_files = [
         "app.py",

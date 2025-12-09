@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Buddy AI Assistant - Server Status</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            display: flex;
+            align-items: center;
+            margin: 10px 0;
+            padding: 15px;
+            border-radius: 5px;
+        }
+        .status.running {
+            background-color: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+        .status-icon {
+            margin-right: 10px;
+            font-size: 20px;
+        }
+        .url {
+            font-family: monospace;
+            background: #f8f9fa;
+            padding: 5px 10px;
+            border-radius: 3px;
+            margin: 5px 0;
+        }
+        h1 {
+            color: #333;
+            text-align: center;
+        }
+        h2 {
+            color: #666;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+        }
+        .demo-creds {
+            background: #fff3cd;
+            border: 1px solid #ffeaa7;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 20px 0;
+        }
+        .feature-list {
+            list-style-type: none;
+            padding: 0;
+        }
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .feature-list li:before {
+            content: "✅ ";
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🤖 Buddy AI Assistant</h1>
+        <p style="text-align: center; color: #666;">Your intelligent companion for notes, conversations, and productivity</p>
+        
+        <h2>🚀 Server Status</h2>
+        
+        <div class="status running">
+            <span class="status-icon">✅</span>
+            <div>
+                <strong>Backend Server</strong><br>
+                <div class="url">http://localhost:12000</div>
+                <small>FastAPI server with authentication, chat, and voice features</small>
+            </div>
+        </div>
+        
+        <div class="status running">
+            <span class="status-icon">✅</span>
+            <div>
+                <strong>Frontend Application</strong><br>
+                <div class="url">http://localhost:12007</div>
+                <small>React application with modern UI and real-time features (Built & Optimized)</small>
+            </div>
+        </div>
+        
+        <h2>🔑 Demo Access</h2>
+        <div class="demo-creds">
+            <strong>Demo Login Credentials:</strong><br>
+            Username: <code>demo</code><br>
+            Password: <code>demo123</code>
+        </div>
+        
+        <h2>🌟 Available Features</h2>
+        <ul class="feature-list">
+            <li>AI-powered chat conversations</li>
+            <li>Voice transcription and synthesis</li>
+            <li>Note organization and management</li>
+            <li>Emotion analysis and insights</li>
+            <li>Google OAuth integration</li>
+            <li>Real-time conversation tracking</li>
+            <li>RESTful API with comprehensive documentation</li>
+        </ul>
+        
+        <h2>📚 API Documentation</h2>
+        <p>Interactive API documentation is available at:</p>
+        <div class="url">http://localhost:12000/docs</div>
+        
+        <h2>🔧 Technical Details</h2>
+        <ul>
+            <li><strong>Backend:</strong> FastAPI with SQLite database</li>
+            <li><strong>Frontend:</strong> React with TypeScript and Tailwind CSS</li>
+            <li><strong>Authentication:</strong> JWT tokens with Google OAuth support</li>
+            <li><strong>Voice:</strong> Web Speech API integration</li>
+            <li><strong>Database:</strong> SQLite with proper schema initialization</li>
+        </ul>
+        
+        <div style="text-align: center; margin-top: 30px; color: #666;">
+            <p>All systems operational! 🎉</p>
+            <small>Last updated: December 9, 2024</small>
+        </div>
+    </div>
+</body>
+</html>
